@@ -191,7 +191,7 @@ export default function InteractiveParticleModel() {
       <h1 className="absolute text-white text-2xl p-8 z-10">Interactive Particle Model</h1>
       <Canvas orthographic
         camera={{ 
-          position: [5, 5, 5], 
+          position: [5.02, 4.95, -5.03], 
           zoom: 100,
           near: 0.1,
           far: 1000
