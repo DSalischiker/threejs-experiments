@@ -2,15 +2,39 @@
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, useGLTF } from '@react-three/drei';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 
 function ParticleModel() {
   const pointsRef = useRef<THREE.Points>(null);
   const modelRef = useRef<THREE.Group>(null);
+  const controlsRef = useRef<any>(null);
   const { camera } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const mouseWorld = useRef(new THREE.Vector3());
+  
+  // Camera auto-return state
+  const initialCameraPos = useRef(new THREE.Vector3(5.02, 4.95, -5.03));
+  const initialTarget = useRef(new THREE.Vector3(0, 0, 0));
+  const lastInteractionTime = useRef(Date.now());
+  const isReturning = useRef(false);
+
+  // Listen to OrbitControls events
+  useEffect(() => {
+    if (controlsRef.current) {
+      const handleChange = () => {
+        if (!isReturning.current) {
+          lastInteractionTime.current = Date.now();
+        }
+      };
+
+      controlsRef.current.addEventListener('change', handleChange);
+
+      return () => {
+        controlsRef.current?.removeEventListener('change', handleChange);
+      };
+    }
+  }, []);
   
   // Load the GLB model
   const gltf = useGLTF('/pg2.glb');
@@ -101,6 +125,30 @@ function ParticleModel() {
   useFrame((state) => {
     if (!pointsRef.current || !modelRef.current) return;
 
+    // Auto-return to initial position after 3 seconds of inactivity
+    const timeSinceLastInteraction = Date.now() - lastInteractionTime.current;
+    const isAtInitialPosition = camera.position.distanceTo(initialCameraPos.current) < 0.1;
+    
+    if (timeSinceLastInteraction > 1500 && !isAtInitialPosition && controlsRef.current) {
+      // Smoothly animate back to initial position
+      isReturning.current = true;
+      camera.position.lerp(initialCameraPos.current, 0.05);
+      controlsRef.current.target.lerp(initialTarget.current, 0.05);
+      controlsRef.current.update();
+      
+      // Stop returning when close enough
+      if (camera.position.distanceTo(initialCameraPos.current) < 0.01) {
+        camera.position.copy(initialCameraPos.current);
+        controlsRef.current.target.copy(initialTarget.current);
+        isReturning.current = false;
+      }
+    } else if (isAtInitialPosition) {
+      isReturning.current = false;
+    }
+
+    // Log camera position for debugging
+    console.log('Camera position:', camera.position.x.toFixed(2), camera.position.y.toFixed(2), camera.position.z.toFixed(2));
+
     const positions = pointsRef.current.geometry.attributes.position.array as Float32Array;
     
     // Use raycaster to get intersection with the model
@@ -153,11 +201,13 @@ function ParticleModel() {
   });
 
   return (
-    <group>
-      {/* Invisible model for raycasting */}
-      <primitive ref={modelRef} object={gltf.scene.clone()} visible={false} />
-      
-      <points ref={pointsRef}>
+    <>
+      <OrbitControls ref={controlsRef} />
+      <group>
+        {/* Invisible model for raycasting */}
+        <primitive ref={modelRef} object={gltf.scene.clone()} visible={false} />
+        
+        <points ref={pointsRef}>
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"
@@ -179,6 +229,7 @@ function ParticleModel() {
         />
       </points>
     </group>
+    </>
   );
 }
 
@@ -200,7 +251,6 @@ export default function InteractiveParticleModel() {
         <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} />
         <ParticleModel />
-        <OrbitControls />
       </Canvas>
     </div>
   );
