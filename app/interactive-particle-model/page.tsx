@@ -146,9 +146,6 @@ function ParticleModel() {
       isReturning.current = false;
     }
 
-    // Log camera position for debugging
-    console.log('Camera position:', camera.position.x.toFixed(2), camera.position.y.toFixed(2), camera.position.z.toFixed(2));
-
     const positions = pointsRef.current.geometry.attributes.position.array as Float32Array;
     
     // Use raycaster to get intersection with the model
@@ -202,7 +199,7 @@ function ParticleModel() {
 
   return (
     <>
-      <OrbitControls ref={controlsRef} />
+      <OrbitControls ref={controlsRef} enablePan={false} />
       <group>
         {/* Invisible model for raycasting */}
         <primitive ref={modelRef} object={gltf.scene.clone()} visible={false} />
@@ -245,7 +242,8 @@ export default function InteractiveParticleModel() {
           position: [5.02, 4.95, -5.03], 
           zoom: 100,
           near: 0.1,
-          far: 1000
+          far: 1000,
+          
         }} 
         className="w-full h-full">
         <ambientLight intensity={0.5} />
